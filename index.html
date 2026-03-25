@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bot Mercado Mini App</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            rosebrand: {
+              50: "#fff5f8",
+              100: "#fde2eb",
+              200: "#fbc8da",
+              300: "#f7a8c6",
+              400: "#f27db0",
+              500: "#e91e63",
+              600: "#d81b60",
+              700: "#b5164f",
+              800: "#8f123f",
+              900: "#5f0c2a"
+            }
+          },
+          boxShadow: {
+            soft: "0 10px 30px rgba(233, 30, 99, 0.12)"
+          }
+        }
+      }
+    }
+  </script>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="bg-rosebrand-50 text-slate-800 min-h-screen">
+  <div class="max-w-6xl mx-auto px-4 py-5 md:py-8">
+    <header class="mb-6">
+      <div class="bg-white rounded-3xl shadow-soft p-5 border border-rosebrand-100">
+        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-rosebrand-600 uppercase tracking-wide">Mini App</p>
+            <h1 class="text-2xl md:text-3xl font-bold text-rosebrand-700">Bot Mercado</h1>
+            <p class="text-sm text-slate-500 mt-1">Inventario, compras, consumos y categorías</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button class="tab-btn active-tab" data-tab="inventario">Inventario</button>
+            <button class="tab-btn" data-tab="compras">Compra</button>
+            <button class="tab-btn" data-tab="consumos">Consumo</button>
+            <button class="tab-btn" data-tab="categorias">Categorías</button>
+            <button class="tab-btn" data-tab="lista">Lista</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section id="alertBox" class="hidden mb-4 rounded-2xl px-4 py-3 text-sm font-medium"></section>
+
+    <section id="loadingBox" class="hidden mb-4 bg-white rounded-2xl shadow-soft p-4 border border-rosebrand-100">
+      <p class="text-rosebrand-700 font-medium">Cargando...</p>
+    </section>
+
+    <!-- INVENTARIO -->
+    <section id="tab-inventario" class="tab-panel">
+      <div class="grid md:grid-cols-4 gap-4 mb-5">
+        <button class="filter-btn active-filter" data-lugar="">General</button>
+        <button class="filter-btn" data-lugar="mercado">Mercado</button>
+        <button class="filter-btn" data-lugar="supermercado">Supermercado</button>
+        <button id="refreshInventarioBtn" class="action-secondary">Actualizar</button>
+      </div>
+
+      <div class="bg-white rounded-3xl shadow-soft p-5 border border-rosebrand-100 overflow-hidden">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-rosebrand-700">Inventario</h2>
+          <span id="inventarioCount" class="badge-soft">0 productos</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left border-b border-rosebrand-100">
+                <th class="py-3 pr-4">Producto</th>
+                <th class="py-3 pr-4">Categoría</th>
+                <th class="py-3 pr-4">Cantidad</th>
+                <th class="py-3">Lugar</th>
+              </tr>
+            </thead>
+            <tbody id="inventarioTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- COMPRAS -->
+    <section id="tab-compras" class="tab-panel hidden">
+      <div class="grid lg:grid-cols-2 gap-5">
+        <div class="panel-card">
+          <h2 class="panel-title">Registrar compra</h2>
+
+          <form id="compraForm" class="space-y-4">
+            <div>
+              <label class="label">Lugar</label>
+              <select id="compraLugar" class="input">
+                <option value="mercado">Mercado</option>
+                <option value="supermercado">Supermercado</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Categoría</label>
+              <select id="compraCategoria" class="input"></select>
+            </div>
+
+            <div>
+              <label class="label">Producto</label>
+              <input id="compraProducto" type="text" class="input" placeholder="Ej: Papa" />
+            </div>
+
+            <div>
+              <label class="label">Cantidad</label>
+              <input id="compraCantidad" type="number" step="0.01" min="0.01" class="input" placeholder="Ej: 2" />
+            </div>
+
+            <button type="submit" class="action-primary w-full">Guardar compra</button>
+          </form>
+        </div>
+
+        <div class="panel-card">
+          <h2 class="panel-title">Compra en lote</h2>
+
+          <div class="space-y-4">
+            <div>
+              <label class="label">Lugar</label>
+              <select id="compraLoteLugar" class="input">
+                <option value="mercado">Mercado</option>
+                <option value="supermercado">Supermercado</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="label">Categoría</label>
+              <select id="compraLoteCategoria" class="input"></select>
+            </div>
+
+            <div>
+              <label class="label">Pega los productos</label>
+              <textarea id="compraLoteTexto" class="input min-h-[220px]" placeholder="Papa - 2&#10;Tomate - 5&#10;Cebolla - 3"></textarea>
+            </div>
+
+            <button id="compraLoteBtn" class="action-primary w-full">Guardar lote</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONSUMOS -->
+    <section id="tab-consumos" class="tab-panel hidden">
+      <div class="grid lg:grid-cols-2 gap-5">
+        <div class="panel-card">
+          <h2 class="panel-title">Registrar consumo</h2>
+
+          <form id="consumoForm" class="space-y-4">
+            <div>
+              <label class="label">Producto</label>
+              <input id="consumoProducto" type="text" class="input" placeholder="Ej: Papa" />
+            </div>
+
+            <div>
+              <label class="label">Cantidad</label>
+              <input id="consumoCantidad" type="number" step="0.01" min="0.01" class="input" placeholder="Ej: 1" />
+            </div>
+
+            <button type="submit" class="action-primary w-full">Guardar consumo</button>
+          </form>
+        </div>
+
+        <div class="panel-card">
+          <h2 class="panel-title">Consumo en lote</h2>
+
+          <div class="space-y-4">
+            <div>
+              <label class="label">Pega los productos</label>
+              <textarea id="consumoLoteTexto" class="input min-h-[220px]" placeholder="Papa - 1&#10;Tomate - 2"></textarea>
+            </div>
+
+            <button id="consumoLoteBtn" class="action-primary w-full">Guardar lote</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CATEGORÍAS -->
+    <section id="tab-categorias" class="tab-panel hidden">
+      <div class="grid lg:grid-cols-2 gap-5">
+        <div class="panel-card">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="panel-title mb-0">Categorías</h2>
+            <button id="refreshCategoriasBtn" class="action-secondary">Actualizar</button>
+          </div>
+
+          <div id="categoriasList" class="space-y-3"></div>
+        </div>
+
+        <div class="panel-card">
+          <h2 class="panel-title">Nueva categoría</h2>
+
+          <form id="categoriaForm" class="space-y-4">
+            <div>
+              <label class="label">Nombre</label>
+              <input id="categoriaNombre" type="text" class="input" placeholder="Ej: LIMPIEZA" />
+            </div>
+
+            <button type="submit" class="action-primary w-full">Añadir categoría</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- LISTA DE COMPRAS -->
+    <section id="tab-lista" class="tab-panel hidden">
+      <div class="panel-card">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="panel-title mb-0">Lista de compras</h2>
+          <button id="refreshListaBtn" class="action-secondary">Actualizar</button>
+        </div>
+
+        <div id="listaComprasBox" class="space-y-3"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
