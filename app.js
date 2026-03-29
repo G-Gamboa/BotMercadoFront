@@ -258,6 +258,7 @@ async function submitCompra(e) {
     showAlert("Compra registrada.");
     await loadInventario();
     await loadListaCompras();
+    await loadConsumoProductos();
   } catch (err) {
     showAlert(err.message, "error");
   }
@@ -280,6 +281,7 @@ async function submitCompraLote() {
     showAlert(`Lote registrado: ${result.ok || 0}`);
     await loadInventario();
     await loadListaCompras();
+    await loadConsumoProductos();
   } catch (err) {
     showAlert(err.message, "error");
   }
@@ -301,6 +303,7 @@ async function submitConsumo(e) {
     showAlert("Consumo registrado.");
     await loadInventario();
     await loadListaCompras();
+    await loadConsumoProductos();
   } catch (err) {
     showAlert(err.message, "error");
   }
@@ -324,6 +327,7 @@ async function submitConsumoLote() {
     showAlert(message);
     await loadInventario();
     await loadListaCompras();
+        await loadConsumoProductos();
   } catch (err) {
     showAlert(err.message, "error");
   }
@@ -379,7 +383,22 @@ async function init() {
     loadCategorias(),
     loadInventario(),
     loadListaCompras(),
+    loadConsumoProductos(),
   ]);
+}
+
+async function loadConsumoProductos() {
+  const data = await apiFetch("/api/inventario");
+  const items = data.items || [];
+
+  if (!items.length) {
+    els.consumoProducto.innerHTML = `<option value="">Sin productos disponibles</option>`;
+    return;
+  }
+
+  els.consumoProducto.innerHTML = items
+    .map(item => `<option value="${item.producto}">${item.producto_label} (${item.cantidad_label})</option>`)
+    .join("");
 }
 
 init().catch(err => {
