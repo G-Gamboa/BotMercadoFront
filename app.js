@@ -48,6 +48,15 @@ const els = {
   refreshListaBtn: document.getElementById("refreshListaBtn"),
 };
 
+function esc(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function showAlert(message, type = "success") {
   els.alertBox.className = "";
   els.alertBox.classList.remove("hidden");
@@ -74,9 +83,7 @@ async function apiFetch(path, options = {}) {
 
   try {
     const res = await fetch(`${API_BASE}${path}`, {
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       ...options,
     });
 
@@ -112,6 +119,13 @@ function setActiveFilter(lugar) {
   });
 }
 
+function capitalizeWords(text) {
+  return text
+    .split(" ")
+    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+}
+
 function parseLoteText(text) {
   return text
     .split("\n")
@@ -134,7 +148,7 @@ function parseLoteText(text) {
 
 function renderCategoriaOptions() {
   const options = state.categorias
-    .map(cat => `<option value="${cat}">${cat}</option>`)
+    .map(cat => `<option value="${esc(cat)}">${esc(cat)}</option>`)
     .join("");
 
   els.compraCategoria.innerHTML = options;
@@ -159,32 +173,25 @@ function renderCategoriasList() {
   els.categoriasList.innerHTML = items
     .map(cat => `
       <div class="category-item flex items-center justify-between gap-3">
-        <div>
-          <p class="font-bold text-rosebrand-700">${cat}</p>
-        </div>
-        <button class="delete-btn" onclick="deleteCategoria('${encodeURIComponent(cat)}', '${cat}')">
-          Eliminar
-        </button>
+        <p class="font-bold text-rosebrand-700">${esc(cat)}</p>
+        <button class="delete-btn" data-categoria="${esc(encodeURIComponent(cat))}">Eliminar</button>
       </div>
     `)
     .join("");
 }
 
-async function deleteCategoria(encodedName, prettyName) {
-  if (!confirm(`¿Eliminar la categoría ${prettyName}?`)) return;
+async function deleteCategoria(encodedName) {
+  const prettyName = decodeURIComponent(encodedName);
+  if (!confirm(`¿Eliminar la categoría "${prettyName}"?`)) return;
 
   try {
-    await apiFetch(`/api/categorias/${encodedName}`, {
-      method: "DELETE",
-    });
+    await apiFetch(`/api/categorias/${encodedName}`, { method: "DELETE" });
     showAlert("Categoría eliminada.");
     await loadCategorias();
   } catch (err) {
     showAlert(err.message, "error");
   }
 }
-
-window.deleteCategoria = deleteCategoria;
 
 async function loadInventario() {
   const q = state.inventarioLugar ? `?lugar=${state.inventarioLugar}` : "";
@@ -205,10 +212,10 @@ async function loadInventario() {
   els.inventarioTableBody.innerHTML = items
     .map(item => `
       <tr class="border-b border-rosebrand-50">
-        <td class="py-3 pr-4 font-semibold">${item.producto_label}</td>
-        <td class="py-3 pr-4">${item.categoria}</td>
-        <td class="py-3 pr-4">${item.cantidad_label}</td>
-        <td class="py-3">${item.lugar}</td>
+        <td class="py-3 pr-4 font-semibold">${esc(item.producto_label)}</td>
+        <td class="py-3 pr-4">${esc(item.categoria)}</td>
+        <td class="py-3 pr-4">${esc(item.cantidad_label)}</td>
+        <td class="py-3">${esc(item.lugar)}</td>
       </tr>
     `)
     .join("");
@@ -226,18 +233,25 @@ async function loadListaCompras() {
   els.listaComprasBox.innerHTML = items
     .map(item => `
       <div class="buy-item">
-        <p class="font-bold text-rosebrand-700">${capitalizeWords(item.producto)}</p>
-        <p class="text-sm text-slate-500 mt-1">${item.categoria}</p>
+        <p class="font-bold text-rosebrand-700">${esc(capitalizeWords(item.producto))}</p>
+        <p class="text-sm text-slate-500 mt-1">${esc(item.categoria)}</p>
       </div>
     `)
     .join("");
 }
 
-function capitalizeWords(text) {
-  return text
-    .split(" ")
-    .map(p => p.charAt(0).toUpperCase() + p.slice(1))
-    .join(" ");
+async function loadConsumoProductos() {
+  const data = await apiFetch("/api/inventario");
+  const items = data.items || [];
+
+  if (!items.length) {
+    els.consumoProducto.innerHTML = `<option value="">Sin productos disponibles</option>`;
+    return;
+  }
+
+  els.consumoProducto.innerHTML = items
+    .map(item => `<option value="${esc(item.producto)}">${esc(item.producto_label)} (${esc(item.cantidad_label)})</option>`)
+    .join("");
 }
 
 async function submitCompra(e) {
@@ -256,9 +270,7 @@ async function submitCompra(e) {
 
     els.compraForm.reset();
     showAlert("Compra registrada.");
-    await loadInventario();
-    await loadListaCompras();
-    await loadConsumoProductos();
+    await Promise.all([loadInventario(), loadListaCompras(), loadConsumoProductos()]);
   } catch (err) {
     showAlert(err.message, "error");
   }
@@ -279,9 +291,7 @@ async function submitCompraLote() {
 
     els.compraLoteTexto.value = "";
     showAlert(`Lote registrado: ${result.ok || 0}`);
-    await loadInventario();
-    await loadListaCompras();
-    await loadConsumoProductos();
+    await Promise.all([loadInventario(), loadListaCompras(), loadConsumoProductos()]);
   } catch (err) {
     showAlert(err.message, "error");
   }
@@ -301,9 +311,7 @@ async function submitConsumo(e) {
 
     els.consumoForm.reset();
     showAlert("Consumo registrado.");
-    await loadInventario();
-    await loadListaCompras();
-    await loadConsumoProductos();
+    await Promise.all([loadInventario(), loadListaCompras(), loadConsumoProductos()]);
   } catch (err) {
     showAlert(err.message, "error");
   }
@@ -325,9 +333,7 @@ async function submitConsumoLote() {
     }
 
     showAlert(message);
-    await loadInventario();
-    await loadListaCompras();
-        await loadConsumoProductos();
+    await Promise.all([loadInventario(), loadListaCompras(), loadConsumoProductos()]);
   } catch (err) {
     showAlert(err.message, "error");
   }
@@ -339,9 +345,7 @@ async function submitCategoria(e) {
   try {
     await apiFetch("/api/categorias", {
       method: "POST",
-      body: JSON.stringify({
-        nombre: els.categoriaNombre.value,
-      }),
+      body: JSON.stringify({ nombre: els.categoriaNombre.value }),
     });
 
     els.categoriaForm.reset();
@@ -362,6 +366,11 @@ function bindEvents() {
       setActiveFilter(btn.dataset.lugar);
       await loadInventario();
     });
+  });
+
+  els.categoriasList.addEventListener("click", e => {
+    const btn = e.target.closest(".delete-btn");
+    if (btn) deleteCategoria(btn.dataset.categoria);
   });
 
   els.compraForm.addEventListener("submit", submitCompra);
@@ -385,20 +394,6 @@ async function init() {
     loadListaCompras(),
     loadConsumoProductos(),
   ]);
-}
-
-async function loadConsumoProductos() {
-  const data = await apiFetch("/api/inventario");
-  const items = data.items || [];
-
-  if (!items.length) {
-    els.consumoProducto.innerHTML = `<option value="">Sin productos disponibles</option>`;
-    return;
-  }
-
-  els.consumoProducto.innerHTML = items
-    .map(item => `<option value="${item.producto}">${item.producto_label} (${item.cantidad_label})</option>`)
-    .join("");
 }
 
 init().catch(err => {
